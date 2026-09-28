@@ -1,4 +1,4 @@
-const CACHE = 'kintai-v4';
+const CACHE = 'kintai-v5';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 const IS_CAPACITOR_HOST = self.location.hostname === 'localhost';
 

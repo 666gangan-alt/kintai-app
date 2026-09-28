@@ -1,6 +1,6 @@
 {
   "name": "kintai_app",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "個人用のオフライン勤怠管理Androidアプリ",
   "scripts": {
     "dev": "vite",
