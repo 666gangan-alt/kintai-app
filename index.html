@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>勤怠管理</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <style>
+    :root{
+      --bg:#f5f5f5; --card:#fff; --text:#171717; --muted:#6b7280;
+      --line:#d1d5db; --accent:#111827; --danger:#b91c1c;
+      --shadow:0 2px 12px rgba(0,0,0,.06);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
+    body{padding-bottom:96px}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .app{max-width:980px;margin:0 auto;padding:12px}
+    .topbar{position:sticky;top:0;z-index:20;background:rgba(245,245,245,.96);backdrop-filter:blur(8px);padding:8px 0 10px}
+    .title-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    h1{font-size:20px;margin:0}
+    .small{font-size:12px;color:var(--muted)}
+    .panel{background:var(--card);border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:10px 0;box-shadow:var(--shadow)}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+    .field input,.field select,.field textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+    .stat{border:1px solid #e5e7eb;border-radius:10px;padding:10px;background:#fafafa}
+    .stat b{display:block;font-size:18px;margin-top:2px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:1px solid #cbd5e1;background:white;color:#111827;border-radius:10px;padding:10px 12px;font-weight:700}
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .btn.danger{color:var(--danger);border-color:#fecaca}
+    .day-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .day-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px;box-shadow:var(--shadow)}
+    .day-card.disabled{opacity:.6}
+    .day-card.is-holiday{border-color:#fecaca;background:#fffafa}
+    .day-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px}
+    .day-label{font-weight:800}
+    .weekday.sun{color:#b91c1c}.weekday.sat{color:#1d4ed8}
+    .holiday-name{display:inline-block;margin-left:7px;color:#b91c1c;font-size:12px;font-weight:700}
+    .holiday{display:flex;align-items:center;gap:6px;font-size:13px}
+    .time-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+    .time-grid .field input{padding:8px}
+    details{margin-top:8px}
+    summary{font-size:13px;color:#374151;cursor:pointer}
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+    .detail-grid .wide{grid-column:1/-1}
+    .worktime{font-weight:800;font-size:14px}
+    .other-row{display:grid;grid-template-columns:110px 1fr;gap:8px;margin-bottom:8px}
+    .other-row input{width:100%;padding:9px;border:1px solid var(--line);border-radius:9px}
+    .memo{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;padding:10px}
+    .footer-actions{position:fixed;z-index:30;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid #e5e7eb;padding:10px max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+    .footer-actions .inner{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;background:#111827;color:white;padding:10px 14px;border-radius:999px;opacity:0;pointer-events:none;transition:.2s;z-index:50;font-size:13px}
+    .toast.show{opacity:1}
+    .preview-close{display:none}
+    #pdfWrap.previewing{position:fixed;inset:0;left:0;z-index:100;background:#d1d5db;overflow:auto;padding:64px 12px 20px}
+    #pdfWrap.previewing .preview-close{display:block;position:fixed;right:16px;top:12px;z-index:101;border:0;border-radius:999px;background:#111827;color:#fff;padding:10px 18px;font-weight:700}
+    #pdfWrap.previewing .pdf-sheet{margin:0 auto;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+
+    /* PDF sheet */
+    #pdfWrap{position:fixed;left:-100000px;top:0;background:white}
+    .pdf-sheet{width:794px;min-height:1123px;background:white;color:#111;padding:24px;font-family:"Yu Gothic","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+    .pdf-head{display:grid;grid-template-columns:1fr 1.4fr 1fr;align-items:end;margin-bottom:8px;font-size:14px}
+    .pdf-head .center{text-align:center;font-size:18px;font-weight:700}
+    .pdf-head .right{text-align:right}
+    .pdf-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+    .pdf-table th,.pdf-table td{border:1px solid #555;padding:2px;text-align:center;height:22px;overflow:hidden;white-space:nowrap}
+    .pdf-table th{background:#f3f4f6;font-weight:700}
+    .pdf-table td.detail{text-align:left;padding-left:4px}
+    .pdf-table .sun{color:#b91c1c}.pdf-table .sat{color:#1d4ed8}
+    .pdf-bottom{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:12px}
+    .pdf-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:10px}
+    .pdf-box{border:1px solid #555;padding:6px;min-height:42px}
+    .pdf-box b{display:block;font-size:14px;margin-top:3px}
+    .pdf-memo{border:1px solid #555;min-height:90px;padding:6px;font-size:10px;white-space:pre-wrap}
+    .pdf-others table{border-collapse:collapse;width:100%;font-size:10px}
+    .pdf-others th,.pdf-others td{border:1px solid #555;padding:4px;height:24px}
+    .pdf-others th{background:#f3f4f6}
+    .pdf-footnote{font-size:8px;color:#555;margin-top:8px;text-align:right}
+
+    @media (max-width:700px){
+      .day-list{grid-template-columns:1fr}
+      .summary{grid-template-columns:repeat(2,1fr)}
+      .grid{grid-template-columns:1fr}
+      .footer-actions .inner{grid-template-columns:1fr 1fr 1fr}
+      .btn{padding:11px 8px;font-size:13px}
+    }
+    @media print{
+      body{background:white;padding:0}
+      .app,.footer-actions,.toast{display:none!important}
+      #pdfWrap{position:static;left:auto;display:block}
+      .pdf-sheet{width:210mm;min-height:297mm;padding:8mm}
+      @page{size:A4 portrait;margin:0}
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="topbar">
+      <div class="title-row">
+        <div>
+          <h1>勤怠管理</h1>
+          <div class="small">月次入力・自動集計・PDF共有｜v1.2 祝日対応</div>
+        </div>
+        <button class="btn" id="newMonthBtn">月を切替</button>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="grid">
+        <div class="field"><label>氏名</label><input id="employeeName" placeholder="例：平方功一" autocomplete="name"></div>
+        <div class="field"><label>対象月</label><input id="targetMonth" type="month"></div>
+      </div>
+    </section>
+
+    <section class="panel summary">
+      <div class="stat"><span class="small">出勤日数</span><b id="sumDays">0日</b></div>
+      <div class="stat"><span class="small">就業時間</span><b id="sumHours">0時間</b></div>
+      <div class="stat"><span class="small">休憩時間</span><b id="sumBreak">0時間</b></div>
+      <div class="stat"><span class="small">飲食代</span><b id="sumMeal">0円</b></div>
+    </section>
+
+    <section class="panel">
+      <div class="actions">
+        <button class="btn" id="copyPrevBtn">前月データを複製</button>
+        <button class="btn" id="backupBtn">バックアップ保存</button>
+        <label class="btn" style="display:inline-block">バックアップ読込<input id="restoreInput" type="file" accept="application/json" hidden></label>
+        <button class="btn danger" id="clearBtn">この月を初期化</button>
+      </div>
+    </section>
+
+    <section id="dayList" class="day-list"></section>
+
+    <section class="panel">
+      <h2 style="font-size:16px;margin:0 0 10px">その他</h2>
+      <div id="otherRows"></div>
+      <h2 style="font-size:16px;margin:14px 0 8px">メモ</h2>
+      <textarea id="memo" class="memo" placeholder="申し送り・特記事項など"></textarea>
+    </section>
+  </main>
+
+  <div class="footer-actions">
+    <div class="inner">
+      <button class="btn" id="previewBtn">PDF確認</button>
+      <button class="btn primary" id="pdfBtn">PDF保存</button>
+      <button class="btn primary" id="shareBtn">PDF共有</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <div id="pdfWrap" aria-hidden="true">
+    <button class="preview-close" id="previewCloseBtn" type="button">閉じる</button>
+    <section id="pdfSheet" class="pdf-sheet">
+      <div class="pdf-head">
+        <div>出勤簿</div>
+        <div class="center">氏名　<span id="pdfName"></span></div>
+        <div class="right"><span id="pdfYear"></span>年 <span id="pdfMonth"></span>月分</div>
+      </div>
+      <table class="pdf-table">
+        <colgroup>
+          <col style="width:28px"><col style="width:34px"><col style="width:30px">
+          <col style="width:58px"><col style="width:58px"><col style="width:58px"><col style="width:58px">
+          <col style="width:46px"><col style="width:46px"><col style="width:54px"><col>
+        </colgroup>
+        <thead>
+          <tr><th>日</th><th>曜日</th><th>休み</th><th>出勤時間</th><th>退勤時間</th><th>出勤時間</th><th>退勤時間</th><th>休憩時間</th><th>就業時間</th><th>飲食代</th><th>詳細</th></tr>
+        </thead>
+        <tbody id="pdfBody"></tbody>
+      </table>
+      <div class="pdf-bottom">
+        <div>
+          <div class="pdf-summary">
+            <div class="pdf-box">出勤日数<b id="pdfSumDays">0日</b></div>
+            <div class="pdf-box">就業時間<b id="pdfSumHours">0時間</b></div>
+            <div class="pdf-box">休憩時間<b id="pdfSumBreak">0時間</b></div>
+            <div class="pdf-box">飲食代<b id="pdfSumMeal">0円</b></div>
+          </div>
+          <div style="font-size:10px;margin:8px 0 3px">memo</div>
+          <div class="pdf-memo" id="pdfMemo"></div>
+        </div>
+        <div class="pdf-others">
+          <table>
+            <thead><tr><th style="width:38%">その他</th><th>詳細</th></tr></thead>
+            <tbody id="pdfOthers"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="pdf-footnote">作成：勤怠管理アプリ v1.2（祝日対応）</div>
+    </section>
+  </div>
+
+  <script type="module">
+  import html2canvas from 'html2canvas';
+  import { jsPDF } from 'jspdf';
+  import { Capacitor } from '@capacitor/core';
+  import { Directory, Filesystem } from '@capacitor/filesystem';
+  import { Share } from '@capacitor/share';
+  import { workHours, formatHours as fmtHours } from './src/kintai-core.js';
+  import holidayData from './src/holidays.json';
+  import { createHolidayCalendar } from './src/japanese-holidays.js';
+
+  (()=>{
+    'use strict';
+    const $ = (s)=>document.querySelector(s);
+    const dayList=$('#dayList'), employeeName=$('#employeeName'), targetMonth=$('#targetMonth'), memo=$('#memo');
+    let state={days:{},others:Array.from({length:4},()=>({amount:'',detail:''})),memo:''};
+    const weekdays=['日','月','火','水','木','金','土'];
+    const holidays=createHolidayCalendar(holidayData);
+
+    function currentMonth(){
+      const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    function storageKey(month=targetMonth.value,name=employeeName.value.trim()){
+      return `kintai:v1:${name||'_'}:${month}`;
+    }
+    function dayDefaults(){return {off:false,in1:'',out1:'',in2:'',out2:'',breakH:'',meal:'',detail:''}}
+    function normalizeState(raw){
+      return {days:raw?.days||{},others:Array.isArray(raw?.others)?raw.others:Array.from({length:4},()=>({amount:'',detail:''})),memo:raw?.memo||''};
+    }
+    function save(silent=true){
+      state.memo=memo.value;
+      localStorage.setItem(storageKey(),JSON.stringify(state));
+      localStorage.setItem('kintai:lastName',employeeName.value.trim());
+      if(!silent) toast('保存しました');
+    }
+    function load(){
+      const raw=localStorage.getItem(storageKey());
+      try{state=normalizeState(raw?JSON.parse(raw):null)}catch{state=normalizeState(null);toast('保存データを読み込めませんでした')}
+      memo.value=state.memo||'';
+      renderDays(); renderOthers(); recalc();
+    }
+    function monthParts(){const [y,m]=targetMonth.value.split('-').map(Number);return {y,m}}
+    function daysInMonth(){const {y,m}=monthParts();return new Date(y,m,0).getDate()}
+    function dayData(d){state.days[d] ||= dayDefaults(); return state.days[d]}
+    function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+    function renderDays(){
+      dayList.innerHTML='';
+      const {y,m}=monthParts(), max=daysInMonth();
+      for(let day=1;day<=max;day++){
+        const d=dayData(day), wd=new Date(y,m-1,day).getDay(), holidayName=holidays.get(y,m,day);
+        const card=document.createElement('article');
+        card.className='day-card'+(d.off?' disabled':'')+(holidayName?' is-holiday':'');
+        card.dataset.day=day;
+        card.innerHTML=`
+          <div class="day-head">
+            <div class="day-label">${m}/${day} <span class="weekday ${holidayName||wd===0?'sun':wd===6?'sat':''}">(${weekdays[wd]})</span>${holidayName?`<span class="holiday-name">${esc(holidayName)}</span>`:''}</div>
+            <label class="holiday"><input type="checkbox" data-k="off" ${d.off?'checked':''}> 休み</label>
+          </div>
+          <div class="time-grid">
+            <div class="field"><label>出勤</label><input type="time" data-k="in1" value="${esc(d.in1)}" ${d.off?'disabled':''}></div>
+            <div class="field"><label>退勤</label><input type="time" data-k="out1" value="${esc(d.out1)}" ${d.off?'disabled':''}></div>
+          </div>
+          <details ${d.in2||d.out2||d.breakH||d.meal||d.detail?'open':''}>
+            <summary>分割勤務・休憩・飲食代・詳細</summary>
+            <div class="detail-grid">
+              <div class="field"><label>2回目 出勤</label><input type="time" data-k="in2" value="${esc(d.in2)}" ${d.off?'disabled':''}></div>
+              <div class="field"><label>2回目 退勤</label><input type="time" data-k="out2" value="${esc(d.out2)}" ${d.off?'disabled':''}></div>
+              <div class="field"><label>休憩時間（時間）</label><input type="number" inputmode="decimal" step="0.25" min="0" data-k="breakH" value="${esc(d.breakH)}" ${d.off?'disabled':''} placeholder="例 1.5"></div>
+              <div class="field"><label>飲食代（円）</label><input type="number" inputmode="numeric" min="0" step="1" data-k="meal" value="${esc(d.meal)}" ${d.off?'disabled':''}></div>
+              <div class="field wide"><label>詳細</label><input type="text" data-k="detail" value="${esc(d.detail)}" ${d.off?'disabled':''} placeholder="遅刻・早退・応援など"></div>
+            </div>
+          </details>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px"><span class="small">就業：</span><span class="worktime" data-work>${fmtHours(workHours(d))}時間</span></div>`;
+        dayList.appendChild(card);
+      }
+    }
+    function renderOthers(){
+      const box=$('#otherRows');box.innerHTML='';
+      state.others=Array.from({length:4},(_,i)=>state.others[i]||{amount:'',detail:''});
+      state.others.forEach((r,i)=>{
+        const row=document.createElement('div'); row.className='other-row'; row.dataset.i=i;
+        row.innerHTML=`<input type="number" inputmode="numeric" data-k="amount" value="${esc(r.amount)}" placeholder="金額"><input type="text" data-k="detail" value="${esc(r.detail)}" placeholder="詳細">`;
+        box.appendChild(row);
+      });
+    }
+    function recalc(){
+      const max=daysInMonth(); let workDays=0,hours=0,breaks=0,meal=0;
+      for(let i=1;i<=max;i++){
+        const d=dayData(i), h=workHours(d); hours+=h;
+        if(!d.off&&(d.in1||d.in2))workDays++;
+        if(!d.off)breaks+=parseFloat(d.breakH)||0;
+        meal+=parseInt(d.meal,10)||0;
+        const el=document.querySelector(`[data-day="${i}"] [data-work]`); if(el)el.textContent=`${fmtHours(h)}時間`;
+      }
+      $('#sumDays').textContent=`${workDays}日`; $('#sumHours').textContent=`${fmtHours(hours)}時間`;
+      $('#sumBreak').textContent=`${fmtHours(breaks)}時間`; $('#sumMeal').textContent=`${meal.toLocaleString()}円`;
+      return {workDays,hours,breaks,meal};
+    }
+    function buildPdfSheet(){
+      const {y,m}=monthParts(), max=daysInMonth(), sums=recalc();
+      $('#pdfName').textContent=employeeName.value.trim()||'　'; $('#pdfYear').textContent=y; $('#pdfMonth').textContent=m;
+      const body=$('#pdfBody'); body.innerHTML='';
+      for(let day=1;day<=31;day++){
+        const valid=day<=max, d=valid?dayData(day):dayDefaults(), wd=valid?new Date(y,m-1,day).getDay():null, holidayName=valid?holidays.get(y,m,day):null;
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${valid?day:''}</td><td class="${holidayName||wd===0?'sun':wd===6?'sat':''}">${valid?(holidayName?`${weekdays[wd]}・祝`:weekdays[wd]):''}</td><td>${valid&&d.off?'休':''}</td><td>${valid&&!d.off?esc(d.in1):''}</td><td>${valid&&!d.off?esc(d.out1):''}</td><td>${valid&&!d.off?esc(d.in2):''}</td><td>${valid&&!d.off?esc(d.out2):''}</td><td>${valid&&!d.off&&d.breakH?esc(d.breakH):''}</td><td>${valid&&!d.off&&workHours(d)?fmtHours(workHours(d)):''}</td><td>${valid&&d.meal?Number(d.meal).toLocaleString():''}</td><td class="detail">${valid?esc(d.detail):''}</td>`;
+        body.appendChild(tr);
+      }
+      $('#pdfSumDays').textContent=`${sums.workDays}日`; $('#pdfSumHours').textContent=`${fmtHours(sums.hours)}時間`;
+      $('#pdfSumBreak').textContent=`${fmtHours(sums.breaks)}時間`; $('#pdfSumMeal').textContent=`${sums.meal.toLocaleString()}円`;
+      $('#pdfMemo').textContent=memo.value||'';
+      const o=$('#pdfOthers');o.innerHTML='';
+      state.others.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${r.amount?Number(r.amount).toLocaleString():''}</td><td>${esc(r.detail)}</td>`;o.appendChild(tr)});
+    }
+    async function pdfBlob(){
+      buildPdfSheet();
+      const canvas=await html2canvas($('#pdfSheet'),{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+      const img=canvas.toDataURL('image/jpeg',0.94);
+      const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+      const pageW=210,pageH=297, ratio=Math.min(pageW/canvas.width,pageH/canvas.height), w=canvas.width*ratio,h=canvas.height*ratio;
+      pdf.addImage(img,'JPEG',(pageW-w)/2,(pageH-h)/2,w,h,undefined,'FAST');
+      return pdf.output('blob');
+    }
+    function fileName(){const n=(employeeName.value.trim()||'氏名未入力').replace(/[\\/:*?"<>|]/g,'_');return `勤怠表_${n}_${targetMonth.value}.pdf`}
+    function blobToBase64(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.readAsDataURL(blob)})}
+    function downloadBlob(blob,name){
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    }
+    async function writeNativeFile(blob,path,directory){
+      const data=await blobToBase64(blob);
+      return Filesystem.writeFile({path,data,directory,recursive:true});
+    }
+    async function savePdf(){
+      try{
+        save(); const blob=await pdfBlob();
+        if(Capacitor.isNativePlatform()) await writeNativeFile(blob,`勤怠管理/${fileName()}`,Directory.Documents);
+        else downloadBlob(blob,fileName());
+        toast('PDFを保存しました');
+      }catch(error){console.error(error);toast('PDFを保存できませんでした')}
+    }
+    async function sharePdf(){
+      try{
+        save(); const blob=await pdfBlob();
+        if(Capacitor.isNativePlatform()){
+          const path=`share/${fileName()}`;
+          await writeNativeFile(blob,path,Directory.Cache);
+          const {uri}=await Filesystem.getUri({path,directory:Directory.Cache});
+          await Share.share({title:'勤怠表',text:`${employeeName.value.trim()} ${targetMonth.value} 勤怠表`,files:[uri],dialogTitle:'PDFを共有'});
+          return;
+        }
+        const file=new File([blob],fileName(),{type:'application/pdf'});
+        if(navigator.canShare?.({files:[file]})) await navigator.share({title:'勤怠表',files:[file]});
+        else{downloadBlob(blob,fileName());toast('共有非対応のためPDFを保存しました')}
+      }catch(error){if(error?.name!=='AbortError'){console.error(error);toast('共有できませんでした。PDF保存をお試しください。')}}
+    }
+    function preview(){save();buildPdfSheet();$('#pdfWrap').classList.add('previewing');$('#pdfWrap').setAttribute('aria-hidden','false')}
+    function closePreview(){$('#pdfWrap').classList.remove('previewing');$('#pdfWrap').setAttribute('aria-hidden','true')}
+    function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2200)}
+
+    dayList.addEventListener('input',e=>{
+      const card=e.target.closest('.day-card'); if(!card)return; const d=dayData(card.dataset.day), k=e.target.dataset.k;if(!k)return;
+      d[k]=e.target.type==='checkbox'?e.target.checked:e.target.value;
+      if(k==='off'){
+        card.classList.toggle('disabled',d.off);
+        card.querySelectorAll('input:not([data-k="off"])').forEach(x=>x.disabled=d.off);
+      }
+      recalc();save();
+    });
+    $('#otherRows').addEventListener('input',e=>{
+      const row=e.target.closest('.other-row');if(!row)return;const i=+row.dataset.i,k=e.target.dataset.k;if(!k)return;state.others[i][k]=e.target.value;save();
+    });
+    memo.addEventListener('input',()=>save());
+    employeeName.addEventListener('change',()=>{localStorage.setItem('kintai:lastName',employeeName.value.trim());load()});
+    targetMonth.addEventListener('change',()=>{load()});
+    $('#pdfBtn').addEventListener('click',savePdf); $('#shareBtn').addEventListener('click',sharePdf); $('#previewBtn').addEventListener('click',preview);
+    $('#previewCloseBtn').addEventListener('click',closePreview);
+    $('#newMonthBtn').addEventListener('click',()=>targetMonth.showPicker?.());
+    $('#copyPrevBtn').addEventListener('click',()=>{
+      const {y,m}=monthParts(); const prev=new Date(y,m-2,1); const pm=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}`;
+      const raw=localStorage.getItem(storageKey(pm)); if(!raw){toast('前月データがありません');return}
+      if(!confirm(`${pm} のデータを現在月へ複製しますか？`))return;
+      state=normalizeState(JSON.parse(raw)); state.days={...state.days}; memo.value=state.memo||'';renderDays();renderOthers();recalc();save(false);
+    });
+    $('#clearBtn').addEventListener('click',()=>{
+      if(!confirm(`${targetMonth.value} の入力を初期化しますか？`))return;
+      localStorage.removeItem(storageKey());state=normalizeState(null);memo.value='';renderDays();renderOthers();recalc();toast('初期化しました');
+    });
+    $('#backupBtn').addEventListener('click',async()=>{
+      save(); const records={};
+      for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key?.startsWith('kintai:v1:'))records[key]=localStorage.getItem(key)}
+      const payload={version:2,employeeName:employeeName.value,targetMonth:targetMonth.value,records,exportedAt:new Date().toISOString()};
+      const name=`勤怠バックアップ_${targetMonth.value}.json`,blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      try{if(Capacitor.isNativePlatform())await writeNativeFile(blob,`勤怠管理/${name}`,Directory.Documents);else downloadBlob(blob,name);toast('バックアップを保存しました')}catch(error){console.error(error);toast('バックアップを保存できませんでした')}
+    });
+    $('#restoreInput').addEventListener('change',async e=>{
+      const file=e.target.files?.[0];if(!file)return;
+      try{
+        const p=JSON.parse(await file.text());if(!p||typeof p!=='object')throw new Error('invalid');
+        if(!confirm('バックアップを復元しますか？ 現在の同じ月のデータは上書きされます。'))return;
+        if(p.records&&typeof p.records==='object'){for(const [key,value] of Object.entries(p.records)){if(key.startsWith('kintai:v1:')&&typeof value==='string')localStorage.setItem(key,value)}}
+        if(p.employeeName)employeeName.value=p.employeeName;if(p.targetMonth)targetMonth.value=p.targetMonth;
+        if(p.state){state=normalizeState(p.state);save()}
+        load();toast('バックアップを復元しました');
+      }catch{toast('バックアップを読めませんでした')}
+      e.target.value='';
+    });
+
+    async function configureServiceWorker(){
+      if(!('serviceWorker' in navigator))return;
+      if(Capacitor.isNativePlatform()){
+        try{
+          const registrations=await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration=>registration.unregister()));
+          if('caches' in window){const keys=await caches.keys();await Promise.all(keys.map(key=>caches.delete(key)))}
+        }catch(error){console.warn('旧オフラインキャッシュの解除に失敗しました',error)}
+        return;
+      }
+      if(location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+
+    targetMonth.value=currentMonth(); employeeName.value=localStorage.getItem('kintai:lastName')||''; load(); configureServiceWorker();
+  })();
+  </script>
+</body>
+</html>

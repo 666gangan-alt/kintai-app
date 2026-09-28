@@ -1,0 +1,9 @@
+{
+  "name": "勤怠管理",
+  "short_name": "勤怠管理",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "description": "月次勤怠入力・自動集計・PDF保存/共有"
+}
